@@ -1,0 +1,6 @@
+# 로컬 개발: localhost 로 변경
+# 배포: localhost (실제 도메인) 로 변경하면 자동 SSL 발급
+localhost {
+    reverse_proxy web:8000
+    encode gzip
+}

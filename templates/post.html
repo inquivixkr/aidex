@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO 메타 태그 -->
+    <title>{{ post.title }} | {{ blog.client_name or blog.naver_blog_id }}</title>
+    <meta name="description" content="{{ post.summary }}">
+    <meta name="keywords" content="{{ keywords | join(', ') }}">
+
+    <!-- canonical: 네이버 원본 URL 지정 (필수) -->
+    <link rel="canonical" href="{{ post.mobile_url }}">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="{{ post.title }}">
+    <meta property="og:description" content="{{ post.summary }}">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://{{ domain }}/blog/{{ blog.naver_blog_id }}/{{ post.naver_post_id }}">
+    {% if post.og_image_url %}
+    <meta property="og:image" content="{{ post.og_image_url }}">
+    {% endif %}
+
+    <!-- Schema.org 구조화 데이터 (AI 크롤러 최적화) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "{{ post.title }}",
+        "description": "{{ post.summary }}",
+        "author": {
+            "@type": "Person",
+            "name": "{{ blog.client_name or blog.naver_blog_id }}"
+        },
+        "datePublished": "{{ post.published_at }}",
+        "keywords": {{ keywords | tojson }},
+        "articleSection": "{{ post.ai_category }}",
+        "mainEntityOfPage": "{{ post.mobile_url }}",
+        "url": "https://{{ domain }}/blog/{{ blog.naver_blog_id }}/{{ post.naver_post_id }}"
+    }
+    </script>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="breadcrumb">
+        <a href="/">홈</a> &gt;
+        <a href="/blog/{{ blog.naver_blog_id }}">{{ blog.client_name or blog.naver_blog_id }}</a> &gt;
+        <span>{{ post.title[:30] }}{% if post.title|length > 30 %}...{% endif %}</span>
+    </nav>
+
+    <main>
+        <!--
+            ① Answer Block: AI가 추출할 수 있는 구조화된 메타 정보
+            - 원본 요약(summary)과 중복되지 않도록 메타 정보만 배치
+        -->
+        <section class="answer-block">
+            <p>
+                <strong>{{ post.ai_category }}</strong> |
+                {{ blog.client_name or blog.naver_blog_id }} |
+                키워드: {{ keywords | join(', ') }} |
+                {{ post.published_at }}
+            </p>
+        </section>
+
+        <!-- ② 글 제목 -->
+        <h1>{{ post.title }}</h1>
+
+        <!-- ③ 메타 정보 바 -->
+        <div class="meta">
+            <span class="category-badge">{{ post.ai_category }}</span>
+            <time datetime="{{ post.published_at }}">{{ post.published_at }}</time>
+            <span class="read-time">원문 읽기 약 3분</span>
+        </div>
+
+        <!-- ④ AI 키워드 태그 -->
+        <div class="keywords">
+            {% for kw in keywords %}
+            <span class="tag">#{{ kw }}</span>
+            {% endfor %}
+        </div>
+
+        <!-- ⑤ 원본 요약 (200자, 변형 없이 그대로 — 이 블록만 본문에 1회 표시) -->
+        <blockquote class="original-summary">
+            <p>{{ post.summary }}</p>
+            <cite>— {{ blog.client_name or blog.naver_blog_id }} 블로그</cite>
+        </blockquote>
+
+        <!-- ⑥ 본문 이미지: 카테고리별 자체 placeholder (핫링크 아님) -->
+        <div class="placeholder-image">
+            <img src="/static/placeholder/{{ post.ai_category }}.webp"
+                 alt="{{ post.ai_category }} 관련 이미지"
+                 loading="lazy"
+                 onerror="this.style.display='none'">
+        </div>
+
+        <!-- ⑦ 전체 글 보기 링크 -->
+        <div class="cta">
+            <a href="{{ post.mobile_url }}" class="read-full" rel="noopener" target="_blank">
+                📖 전체 글 보기 →
+            </a>
+        </div>
+
+        <!--
+            ⑧ 관련 포스트 클러스터
+            - Doorway Page 방지: 페이지에 독립적 가치(내비게이션 허브) 부여
+            - GEO: 같은 주제의 글을 클러스터링하여 토픽 권위 확보
+        -->
+        {% if related %}
+        <section class="related-posts">
+            <h2>{{ blog.client_name or blog.naver_blog_id }}의 다른 {{ post.ai_category }} 글</h2>
+            <ul>
+                {% for r in related %}
+                <li>
+                    <a href="/blog/{{ blog.naver_blog_id }}/{{ r.naver_post_id }}">{{ r.title }}</a>
+                    <time>{{ r.published_at }}</time>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+    </main>
+
+    <footer>
+        <p>이 페이지는 <a href="{{ post.mobile_url }}" rel="noopener">{{ blog.client_name or blog.naver_blog_id }}</a> 블로그의
+        콘텐츠를 소개합니다. 전체 글은 원본 블로그에서 확인하세요.</p>
+    </footer>
+</body>
+</html>

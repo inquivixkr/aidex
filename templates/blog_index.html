@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ blog.client_name or blog.naver_blog_id }} — AI DEX</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="breadcrumb">
+        <a href="/">홈</a> &gt; <span>{{ blog.client_name or blog.naver_blog_id }}</span>
+    </nav>
+    <main>
+        <h1>{{ blog.client_name or blog.naver_blog_id }}</h1>
+        <p>총 {{ posts|length }}개 글</p>
+
+        <table>
+            <tr><th>제목</th><th>카테고리</th><th>작성일</th><th>상태</th></tr>
+            {% for post in posts %}
+            <tr>
+                <td><a href="/blog/{{ blog.naver_blog_id }}/{{ post.naver_post_id }}">{{ post.title }}</a></td>
+                <td>{{ post.ai_category or '-' }}</td>
+                <td>{{ post.published_at or '-' }}</td>
+                <td class="status-{{ post.index_status }}">{{ post.index_status }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </main>
+</body>
+</html>
