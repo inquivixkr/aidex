@@ -130,3 +130,54 @@ def check_google_indexed(page_url: str, api_key: str, cse_id: str) -> bool:
     data = resp.json()
     total = int(data.get("searchInformation", {}).get("totalResults", 0))
     return total > 0
+
+
+# ═══════════════════════════════════════════
+# Bing 인덱싱 상태 확인 (동기)
+# ═══════════════════════════════════════════
+
+def check_bing_indexed(page_url: str, api_key: str, site_url: str) -> dict:
+    if not api_key:
+        return {"crawled": False, "last_crawled": None, "http_status": 0}
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(
+                "https://ssl.bing.com/webmaster/api.svc/json/GetUrlInfo",
+                params={"apikey": api_key, "siteUrl": site_url, "url": page_url},
+            )
+    except httpx.RequestError as e:
+        print(f"Bing API error: {e}")
+        return {"crawled": False, "last_crawled": None, "http_status": 0}
+    if resp.status_code != 200:
+        print(f"Bing API status: {resp.status_code}")
+        return {"crawled": False, "last_crawled": None, "http_status": 0}
+    data = resp.json().get("d", {})
+    last_crawled = data.get("LastCrawledDate")
+    http_status = data.get("HttpStatus", 0)
+    is_page = data.get("IsPage", False)
+    return {
+        "crawled": bool(last_crawled and http_status == 200 and is_page),
+        "last_crawled": last_crawled,
+        "http_status": http_status,
+    }
+
+
+def submit_bing_url(url: str, api_key: str, site_url: str) -> bool:
+    if not api_key:
+        return False
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(
+                f"https://ssl.bing.com/webmaster/api.svc/json/SubmitUrl?apikey={api_key}",
+                headers={"Content-Type": "application/json; charset=utf-8"},
+                content=json.dumps({"siteUrl": site_url, "url": url}),
+            )
+    except httpx.RequestError as e:
+        print(f"Bing SubmitUrl error: {e}")
+        return False
+    if resp.status_code == 200:
+        print(f"Bing SubmitUrl ok: {url}")
+        return True
+    else:
+        print(f"Bing SubmitUrl fail: {resp.status_code}")
+        return False
