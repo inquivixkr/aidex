@@ -294,6 +294,7 @@ async def trigger_collect(blog_id: str):
                 page_url=f"/blog/{blog.naver_blog_id}/{pd['post_id']}",
                 published_at=pd["published"],
                 source=pd["source"],
+                index_status="submitted",
                 ai_keywords=json.dumps(keywords, ensure_ascii=False),
                 ai_category=category,
             )
