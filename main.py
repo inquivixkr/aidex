@@ -10,9 +10,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import joinedload
 
-from config import INDEXNOW_KEY, DOMAIN
+from config import INDEXNOW_KEY, DOMAIN, BING_API_KEY
 from models import SessionLocal, Blog, Post, Base, engine
-from indexing import generate_sitemap
+from indexing import generate_sitemap, submit_indexnow, check_bing_indexed, submit_bing_url
 from collector import collect_rss, extract_keywords, classify_category
 
 
@@ -241,6 +241,18 @@ async def add_blog(naver_blog_id: str, client_name: str = ""):
         )
         db.add(blog)
         db.commit()
+
+        # IndexNow + Bing 자동 제출
+        if new_count > 0:
+            site_url = f"https://{DOMAIN}"
+            new_urls = []
+            new_posts = db.query(Post).filter(Post.blog_id == blog.id, Post.index_status == "submitted").all()
+            for p in new_posts:
+                new_urls.append(f"https://{DOMAIN}/blog/{blog.naver_blog_id}/{p.naver_post_id}")
+            if new_urls:
+                submit_indexnow(new_urls)
+                for u in new_urls:
+                    submit_bing_url(u, BING_API_KEY, site_url)
         db.refresh(blog)
 
         return {
@@ -302,6 +314,56 @@ async def trigger_collect(blog_id: str):
             new_count += 1
 
         db.commit()
+
+        # IndexNow + Bing 자동 제출
+        if new_count > 0:
+            site_url = f"https://{DOMAIN}"
+            new_urls = []
+            new_posts = db.query(Post).filter(Post.blog_id == blog.id, Post.index_status == "submitted").all()
+            for p in new_posts:
+                new_urls.append(f"https://{DOMAIN}/blog/{blog.naver_blog_id}/{p.naver_post_id}")
+            if new_urls:
+                submit_indexnow(new_urls)
+                for u in new_urls:
+                    submit_bing_url(u, BING_API_KEY, site_url)
         return {"blog_id": blog_id, "new_posts": new_count, "total_found": len(posts_data)}
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════
+# Bing 인덱싱 확인 API
+# ═══════════════════════════════════════════
+
+@app.get("/api/bing/check/{blog_id}/{post_id}")
+async def bing_check(blog_id: str, post_id: str):
+    page_url = f"https://{DOMAIN}/blog/{blog_id}/{post_id}"
+    site_url = f"https://{DOMAIN}"
+    result = check_bing_indexed(page_url, BING_API_KEY, site_url)
+    return {"url": page_url, "bing": result}
+
+
+@app.post("/api/bing/submit/{blog_id}/{post_id}")
+async def bing_submit(blog_id: str, post_id: str):
+    page_url = f"https://{DOMAIN}/blog/{blog_id}/{post_id}"
+    site_url = f"https://{DOMAIN}"
+    ok = submit_bing_url(page_url, BING_API_KEY, site_url)
+    return {"url": page_url, "submitted": ok}
+
+
+@app.post("/api/bing/submit-all")
+async def bing_submit_all():
+    db = SessionLocal()
+    try:
+        posts = db.query(Post).options(
+            joinedload(Post.blog)
+        ).filter(Post.index_status == "submitted").all()
+        site_url = f"https://{DOMAIN}"
+        count = 0
+        for p in posts:
+            url = f"https://{DOMAIN}/blog/{p.blog.naver_blog_id}/{p.naver_post_id}"
+            if submit_bing_url(url, BING_API_KEY, site_url):
+                count += 1
+        return {"submitted": count, "total": len(posts)}
     finally:
         db.close()
